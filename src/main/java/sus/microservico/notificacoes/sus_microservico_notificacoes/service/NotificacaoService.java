@@ -7,11 +7,9 @@ import org.springframework.stereotype.Service;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.event.NotificacaoCirurgiaAtualizadaEvent;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.event.NotificacaoCirurgiaCanceladaEvent;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.event.NotificacaoCirurgiaCriadaEvent;
-import sus.microservico.notificacoes.sus_microservico_notificacoes.model.Medico;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.Paciente;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.TarefaAssistenteSocial;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.enums.StatusTarefa;
-import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.MedicoRepository;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.PacienteRepository;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.TarefaAssistenteSocialRepository;
 
@@ -24,14 +22,12 @@ public class NotificacaoService {
 
     private final Logger logger = LoggerFactory.getLogger(NotificacaoService.class);
     private final PacienteRepository pacienteRepository;
-    private final MedicoRepository medicoRepository;
     private final TarefaAssistenteSocialRepository tarefaRepository;
 
     public void processarNotificacaoCriacao(NotificacaoCirurgiaCriadaEvent evento) {
         logger.info("Processando notificação de criação para cirurgia {}", evento.cirurgiaId());
         
         Paciente paciente = pacienteRepository.findById(evento.pacienteId()).orElse(null);
-        Medico medico = medicoRepository.findById(evento.medicoId()).orElse(null);
         
         if (paciente == null) {
             logger.warn("Paciente {} não encontrado", evento.pacienteId());
@@ -45,14 +41,13 @@ public class NotificacaoService {
                 evento.local()
         );
         
-        enviarNotificacoes(paciente, medico, "AGENDAMENTO", mensagem);
+        enviarNotificacoes(paciente, "AGENDAMENTO", mensagem);
     }
 
     public void processarNotificacaoAtualizacao(NotificacaoCirurgiaAtualizadaEvent evento) {
         logger.info("Processando notificação de atualização para cirurgia {}", evento.cirurgiaId());
         
         Paciente paciente = pacienteRepository.findById(evento.pacienteId()).orElse(null);
-        Medico medico = medicoRepository.findById(evento.medicoId()).orElse(null);
         
         if (paciente == null) {
             logger.warn("Paciente {} não encontrado", evento.pacienteId());
@@ -66,14 +61,13 @@ public class NotificacaoService {
                 evento.local()
         );
         
-        enviarNotificacoes(paciente, medico, "ATUALIZAÇÃO", mensagem);
+        enviarNotificacoes(paciente, "ATUALIZAÇÃO", mensagem);
     }
 
     public void processarNotificacaoCancelamento(NotificacaoCirurgiaCanceladaEvent evento) {
         logger.info("Processando notificação de cancelamento para cirurgia {}", evento.cirurgiaId());
         
         Paciente paciente = pacienteRepository.findById(evento.pacienteId()).orElse(null);
-        Medico medico = medicoRepository.findById(evento.medicoId()).orElse(null);
         
         if (paciente == null) {
             logger.warn("Paciente {} não encontrado", evento.pacienteId());
@@ -86,10 +80,10 @@ public class NotificacaoService {
                 evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm"))
         );
         
-        enviarNotificacoes(paciente, medico, "CANCELAMENTO", mensagem);
+        enviarNotificacoes(paciente, "CANCELAMENTO", mensagem);
     }
 
-    private void enviarNotificacoes(Paciente paciente, Medico medico, String tipo, String mensagem) {
+    private void enviarNotificacoes(Paciente paciente, String tipo, String mensagem) {
         boolean pacienteNotificado = false;
         boolean medicoNotificado = false;
         
@@ -109,12 +103,6 @@ public class NotificacaoService {
             criarTarefaAssistenteSocial(paciente.getId(), mensagem);
         }
         
-        // Notificar médico (se existir e tiver email)
-        if (medico != null && medico.getEmail() != null && !medico.getEmail().isBlank()) {
-            enviarEmail(medico.getEmail(), tipo, mensagem);
-            medicoNotificado = true;
-        }
-        
         logger.info("Notificações enviadas - Paciente: {}, Médico: {}", pacienteNotificado, medicoNotificado);
     }
 
@@ -124,7 +112,6 @@ public class NotificacaoService {
         logger.info("Tipo: {}", tipo);
         logger.info("Mensagem: {}", mensagem);
         logger.info("==========================================================");
-        // Futuramente: integrar com serviço de e-mail real
     }
 
     private void enviarSMS(String telefone, String mensagem) {
@@ -132,7 +119,6 @@ public class NotificacaoService {
         logger.info("SMS enviado para: {}", telefone);
         logger.info("Mensagem: {}", mensagem);
         logger.info("==========================================================");
-        // Futuramente: integrar com serviço de SMS real
     }
 
     private void criarTarefaAssistenteSocial(java.util.UUID pacienteId, String mensagem) {
@@ -144,5 +130,24 @@ public class NotificacaoService {
         
         tarefaRepository.save(tarefa);
         logger.info("Tarefa criada para assistente social notificar paciente {} presencialmente", pacienteId);
+    }
+    
+    public void enviarLembretePaciente(java.util.UUID pacienteId, String mensagem) {
+        Paciente paciente = pacienteRepository.findById(pacienteId).orElse(null);
+        
+        if (paciente == null) {
+            logger.warn("Paciente {} não encontrado para envio de lembrete", pacienteId);
+            return;
+        }
+        
+        if (paciente.getEmail() != null && !paciente.getEmail().isBlank()) {
+            enviarEmail(paciente.getEmail(), "LEMBRETE", mensagem);
+            logger.warn("Lembrete enviado para paciente por email");
+        }
+        
+        if (paciente.getTelefone() != null && !paciente.getTelefone().isBlank()) {
+            enviarSMS(paciente.getTelefone(), mensagem);
+            logger.warn("Lembrete enviado para paciente por SMS");
+        }
     }
 }

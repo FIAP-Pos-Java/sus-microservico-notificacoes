@@ -18,19 +18,19 @@ public class NotificacaoConsumer {
     private final Logger logger = LoggerFactory.getLogger(NotificacaoConsumer.class);
     private final NotificacaoService notificacaoService;
 
-    @RabbitListener(queues = RabbitMQConfig.NOTIFICACAO_CIRURGIA_CRIADA_QUEUE)
+    @RabbitListener(queues = RabbitMQConfig.CIRURGIA_CRIADA_QUEUE)
     public void receberNotificacaoCirurgiaCriada(NotificacaoCirurgiaCriadaEvent evento) {
         logger.info("Evento de notificação de criação recebido para cirurgia {}", evento.cirurgiaId());
         notificacaoService.processarNotificacaoCriacao(evento);
     }
 
-    @RabbitListener(queues = RabbitMQConfig.NOTIFICACAO_CIRURGIA_ATUALIZADA_QUEUE)
+    @RabbitListener(queues = RabbitMQConfig.CIRURGIA_ATUALIZADA_QUEUE)
     public void receberNotificacaoCirurgiaAtualizada(NotificacaoCirurgiaAtualizadaEvent evento) {
         logger.info("Evento de notificação de atualização recebido para cirurgia {}", evento.cirurgiaId());
         notificacaoService.processarNotificacaoAtualizacao(evento);
     }
 
-    @RabbitListener(queues = RabbitMQConfig.NOTIFICACAO_CIRURGIA_CANCELADA_QUEUE)
+    @RabbitListener(queues = RabbitMQConfig.CIRURGIA_CANCELADA_QUEUE)
     public void receberNotificacaoCirurgiaCancelada(NotificacaoCirurgiaCanceladaEvent evento) {
         logger.info("Evento de notificação de cancelamento recebido para cirurgia {}", evento.cirurgiaId());
         notificacaoService.processarNotificacaoCancelamento(evento);
