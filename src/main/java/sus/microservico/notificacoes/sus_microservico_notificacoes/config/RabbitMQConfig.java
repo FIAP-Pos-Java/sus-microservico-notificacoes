@@ -8,7 +8,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
     
-    public static final String CIRURGIA_AGENDADA_QUEUE = "cirurgia.agendada.queue";
+    public static final String CIRURGIA_CRIADA_QUEUE = "notificacao.cirurgia.criada.queue";
+    public static final String CIRURGIA_ATUALIZADA_QUEUE = "notificacao.cirurgia.atualizada.queue";
+    public static final String CIRURGIA_CANCELADA_QUEUE = "notificacao.cirurgia.cancelada.queue";
 
     @Bean
     public MessageConverter messageConverter() {

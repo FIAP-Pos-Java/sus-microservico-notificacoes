@@ -40,7 +40,7 @@ public class NotificacaoScheduler {
                 notificacaoService.processarNotificacao(cirurgia);
             } catch (Exception e) {
                 this.logger.error("Erro ao processar notificação da cirurgia {}: {}", 
-                    cirurgia.getCirurgiaId(), e.getMessage());
+                    cirurgia.getId(), e.getMessage());
             }
         }
         
