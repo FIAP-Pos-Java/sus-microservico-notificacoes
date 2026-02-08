@@ -20,10 +20,9 @@ public class CirurgiaAgendadaConsumer {
 
     @RabbitListener(queues = "cirurgia.agendada.queue")
     public void receberCirurgiaAgendada(CirurgiaAgendadaEvent evento) {
-        this.logger.info("Evento CirurgiaAgendadaEvent recebido: cirurgia {}", evento.cirurgiaId());
+        this.logger.info("Evento CirurgiaAgendadaEvent recebido para paciente {}", evento.pacienteId());
         
         CirurgiaNotificacao notificacao = new CirurgiaNotificacao();
-        notificacao.setCirurgiaId(evento.cirurgiaId());
         notificacao.setPacienteId(evento.pacienteId());
         notificacao.setMedicoId(evento.medicoId());
         notificacao.setDataCirurgia(evento.dataCirurgia());
@@ -32,7 +31,7 @@ public class CirurgiaAgendadaConsumer {
         notificacao.setDataRecebimento(LocalDateTime.now());
         notificacao.setNotificacaoEnviada(false);
         
-        repository.save(notificacao);
-        this.logger.info("CirurgiaNotificacao salva para cirurgia {}", evento.cirurgiaId());
+        CirurgiaNotificacao salva = repository.save(notificacao);
+        this.logger.info("CirurgiaNotificacao {} salva para paciente {}", salva.getId(), evento.pacienteId());
     }
 }

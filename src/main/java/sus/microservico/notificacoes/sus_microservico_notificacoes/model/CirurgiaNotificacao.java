@@ -17,7 +17,8 @@ import java.util.UUID;
 @NoArgsConstructor
 public class CirurgiaNotificacao {
     @Id
-    private UUID cirurgiaId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
     private UUID pacienteId;
     private UUID medicoId;
