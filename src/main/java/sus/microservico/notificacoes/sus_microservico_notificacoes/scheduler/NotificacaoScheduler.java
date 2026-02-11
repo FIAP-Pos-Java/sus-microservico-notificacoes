@@ -82,18 +82,14 @@ public class NotificacaoScheduler {
             return;
         }
         
-        String mensagem = String.format(
-                "LEMBRETE: Sua cirurgia está agendada para %s às %s no local: %s. " +
-                "Por favor, siga as orientações médicas de preparo.",
-                cirurgia.getDataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                cirurgia.getHoraCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
-                cirurgia.getLocal()
-        );
+        String dataCirurgia = cirurgia.getDataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String horaCirurgia = cirurgia.getHoraCirurgia().format(DateTimeFormatter.ofPattern("HH:mm"));
+        String local = cirurgia.getLocal();
         
         logger.info("Enviando lembrete para paciente {} ({}) - Cirurgia {}", 
                    paciente.getNome(), cirurgia.getPacienteId(), cirurgia.getId());
         
-        notificacaoService.enviarLembretePaciente(cirurgia.getPacienteId(), mensagem);
+        notificacaoService.enviarLembretePaciente(cirurgia.getPacienteId(), dataCirurgia, horaCirurgia, local);
     }
     
     private void enviarLembreteAssistenteSocial(Cirurgia cirurgia) {
@@ -124,19 +120,14 @@ public class NotificacaoScheduler {
                 
                 Paciente paciente = pacienteRepository.findById(cirurgia.getPacienteId()).orElse(null);
                 String nomePaciente = paciente != null ? paciente.getNome() : "Paciente ID: " + cirurgia.getPacienteId();
-                
-                String mensagem = String.format(
-                        "LEMBRETE: O paciente %s possui cirurgia agendada para %s às %s no local: %s. ",
-                        nomePaciente,
-                        cirurgia.getDataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                        cirurgia.getHoraCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
-                        cirurgia.getLocal()
-                );
+                String dataCirurgia = cirurgia.getDataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                String horaCirurgia = cirurgia.getHoraCirurgia().format(DateTimeFormatter.ofPattern("HH:mm"));
+                String local = cirurgia.getLocal();
                 
                 logger.info("Enviando lembrete para assistente social {} ({}) sobre cirurgia {}", 
                            assistente.getNome(), assistente.getId(), cirurgia.getId());
                 
-                notificacaoService.enviarLembreteAssistenteSocial(assistente, mensagem);
+                notificacaoService.enviarLembreteAssistenteSocial(assistente, nomePaciente, dataCirurgia, horaCirurgia, local);
                 
             } catch (Exception e) {
                 logger.error("Erro ao notificar assistente social sobre tarefa {}: {}", 
