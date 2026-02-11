@@ -21,6 +21,8 @@ public class TarefaAssistenteSocial {
     
     private UUID pacienteId;
     private UUID cirurgiaId;
+    
+    @Column(length = 1000)
     private String descricao;
     
     @Enumerated(EnumType.STRING)
