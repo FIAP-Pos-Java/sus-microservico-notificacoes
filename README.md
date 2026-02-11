@@ -6,10 +6,6 @@
 
 Este projeto utiliza variáveis de ambiente para configuração. Crie um arquivo `.env` na raiz do projeto baseado no arquivo `.env.example`:
 
-```bash
-cp .env.example .env
-```
-
 ### Variáveis Necessárias
 
 #### Database
@@ -24,7 +20,7 @@ cp .env.example .env
 
 #### Email (Gmail)
 - `MAIL_USERNAME`: Seu email do Gmail
-- `MAIL_PASSWORD`: Senha de aplicativo do Gmail (não use sua senha pessoal!)
+- `MAIL_PASSWORD`: Senha de aplicativo do Gmail (não use sua senha pessoal)
   - Para gerar uma senha de aplicativo: https://myaccount.google.com/apppasswords
 
 #### Twilio (SMS)
@@ -34,13 +30,12 @@ cp .env.example .env
 
 ### Executando o Projeto
 
-```bash
-./mvnw spring-boot:run
-```
+Clone os 3 projetos no mesmo diretório
+sustech
+  -> sus-microsservico-core
+  -> sus-microsservico-agendamento
+  -> sus-microservico-notificacoes
 
-### Executando com Docker
+Configure o .env de cada projeto (todos tem um .env de exemplo)
 
-```bash
-cd ../sustech
-docker-compose up sus-notificacoes
-```
+Abra o bash no sus-microsservico-core e execute o comando #docker-compose build --no-cache
