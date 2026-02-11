@@ -28,14 +28,27 @@ Este projeto utiliza variáveis de ambiente para configuração. Crie um arquivo
 - `TWILIO_AUTH_TOKEN`: Auth Token do Twilio
 - `TWILIO_PHONE_NUMBER`: Número de telefone do Twilio (formato: +1234567890)
 
-### Executando o Projeto
+## Executando o Projeto
 
-Clone os 3 projetos no mesmo diretório
-sustech
-  -> sus-microsservico-core
-  -> sus-microsservico-agendamento
-  -> sus-microservico-notificacoes
+### 1. Estrutura de Diretórios
 
-Configure o .env de cada projeto (todos tem um .env de exemplo)
+Clone os 3 microserviços dentro de um diretório principal chamado `sustech`:
 
-Abra o bash no sus-microsservico-core e execute o comando `docker-compose build --no-cache`
+```
+sustech/                              ← Diretório principal
+├── sus-microsservico-core/          ← Microserviço Core (contém o docker-compose.yml)
+├── sus-microsservico-agendamento/   ← Microserviço de Agendamento
+└── sus-microservico-notificacoes/   ← Microserviço de Notificações
+```
+
+### 2. Configuração
+
+Configure o arquivo `.env` de cada microserviço baseado no arquivo `.env.example` presente em cada projeto.
+
+### 3. Build e Execução
+
+Abra o terminal no diretório `sus-microsservico-core` e execute:
+
+```bash
+docker-compose build --no-cache
+```
