@@ -38,4 +38,4 @@ sustech
 
 Configure o .env de cada projeto (todos tem um .env de exemplo)
 
-Abra o bash no sus-microsservico-core e execute o comando #docker-compose build --no-cache
+Abra o bash no sus-microsservico-core e execute o comando `docker-compose build --no-cache`
