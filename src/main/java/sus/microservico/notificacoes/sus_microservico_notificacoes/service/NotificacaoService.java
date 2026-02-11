@@ -17,11 +17,15 @@ import sus.microservico.notificacoes.sus_microservico_notificacoes.model.Assiste
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.Paciente;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.TarefaAssistenteSocial;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.model.enums.StatusTarefa;
+import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.AssistenteSocialRepository;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.PacienteRepository;
 import sus.microservico.notificacoes.sus_microservico_notificacoes.repository.TarefaAssistenteSocialRepository;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class NotificacaoService {
@@ -29,6 +33,7 @@ public class NotificacaoService {
     private final Logger logger = LoggerFactory.getLogger(NotificacaoService.class);
     private final PacienteRepository pacienteRepository;
     private final TarefaAssistenteSocialRepository tarefaRepository;
+    private final AssistenteSocialRepository assistenteSocialRepository;
     private final JavaMailSender mailSender;
     
     @Value("${twilio.account.sid}")
@@ -45,9 +50,11 @@ public class NotificacaoService {
     
     public NotificacaoService(PacienteRepository pacienteRepository, 
                              TarefaAssistenteSocialRepository tarefaRepository,
+                             AssistenteSocialRepository assistenteSocialRepository,
                              JavaMailSender mailSender) {
         this.pacienteRepository = pacienteRepository;
         this.tarefaRepository = tarefaRepository;
+        this.assistenteSocialRepository = assistenteSocialRepository;
         this.mailSender = mailSender;
     }
     
@@ -86,14 +93,10 @@ public class NotificacaoService {
             logger.info("E-mail: {}", paciente.getEmail() != null ? paciente.getEmail() : "(não possui)");
             logger.info("Telefone: {}", paciente.getTelefone() != null ? paciente.getTelefone() : "(não possui)");
             
-            String mensagem = String.format(
-                    "Cirurgia agendada para %s às %s no local: %s",
-                    evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
-                    evento.local()
-            );
+            String assunto = "Confirmação de Agendamento de Cirurgia";
+            String mensagem = criarMensagemAgendamento(paciente.getNome(), evento);
             
-            enviarNotificacoes(paciente, "AGENDAMENTO", mensagem);
+            enviarNotificacoes(paciente, assunto, mensagem);
             
             logger.info("==========================================================");
             logger.info("✓ NOTIFICAÇÃO PROCESSADA COM SUCESSO");
@@ -120,14 +123,10 @@ public class NotificacaoService {
             return;
         }
         
-        String mensagem = String.format(
-                "Cirurgia ATUALIZADA para %s às %s no local: %s",
-                evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
-                evento.local()
-        );
+        String assunto = "Atualização no Agendamento da sua Cirurgia";
+        String mensagem = criarMensagemAtualizacao(paciente.getNome(), evento);
         
-        enviarNotificacoes(paciente, "ATUALIZAÇÃO", mensagem);
+        enviarNotificacoes(paciente, assunto, mensagem);
     }
 
     public void processarNotificacaoCancelamento(NotificacaoCirurgiaCanceladaEvent evento) {
@@ -140,13 +139,10 @@ public class NotificacaoService {
             return;
         }
         
-        String mensagem = String.format(
-                "Cirurgia CANCELADA que estava agendada para %s às %s",
-                evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm"))
-        );
+        String assunto = "Cancelamento de Cirurgia";
+        String mensagem = criarMensagemCancelamento(paciente.getNome(), evento);
         
-        enviarNotificacoes(paciente, "CANCELAMENTO", mensagem);
+        enviarNotificacoes(paciente, assunto, mensagem);
     }
 
     private void enviarNotificacoes(Paciente paciente, String tipo, String mensagem) {
@@ -200,7 +196,7 @@ public class NotificacaoService {
         logger.info("----------------------------------------------------------");
     }
 
-    private boolean enviarEmail(String email, String tipo, String mensagem) {
+    private boolean enviarEmail(String email, String assunto, String mensagem) {
         try {
             logger.info("   → Verificando configuração de e-mail...");
             
@@ -217,21 +213,20 @@ public class NotificacaoService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(emailFrom);
             message.setTo(email);
-            message.setSubject("SusTech - Notificação de " + tipo);
+            message.setSubject("SusTech - " + assunto);
             message.setText(mensagem);
             
             logger.info("   → Enviando e-mail via JavaMailSender...");
             logger.info("   De: {}", emailFrom);
             logger.info("   Para: {}", email);
-            logger.info("   Assunto: SusTech - Notificação de {}", tipo);
+            logger.info("   Assunto: SusTech - {}", assunto);
             
             mailSender.send(message);
             
             logger.info("==========================================================");
             logger.info("✅ EMAIL ENVIADO COM SUCESSO!");
             logger.info("Destinatário: {}", email);
-            logger.info("Tipo: {}", tipo);
-            logger.info("Mensagem: {}", mensagem);
+            logger.info("Assunto: {}", assunto);
             logger.info("==========================================================");
             return true;
         } catch (Exception e) {
@@ -251,6 +246,90 @@ public class NotificacaoService {
             logger.error("==========================================================");
             return false;
         }
+    }
+    
+    private String criarMensagemAgendamento(String nomePaciente, NotificacaoCirurgiaCriadaEvent evento) {
+        return String.format(
+            "Olá, %s!\n\n" +
+            "É com alegria que informamos que sua cirurgia foi agendada com sucesso.\n\n" +
+            "Detalhes do Agendamento:\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "📅 Data: %s\n" +
+            "🕐 Horário: %s\n" +
+            "📍 Local: %s\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+            "Orientações Importantes:\n" +
+            "• Chegue com 1 hora de antecedência\n" +
+            "• Traga um acompanhante adulto\n" +
+            "• Siga rigorosamente as orientações de jejum fornecidas pelo seu médico\n" +
+            "• Traga seus documentos pessoais e cartão do SUS\n" +
+            "• Leve seus exames médicos mais recentes\n\n" +
+            "Em caso de dúvidas ou imprevistos, não hesite em nos contatar.\n" +
+            "Estamos aqui para cuidar de você!\n\n" +
+            "Atenciosamente,\n" +
+            "Equipe SusTech\n" +
+            "Sistema Único de Saúde",
+            nomePaciente,
+            evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+            evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
+            evento.local()
+        );
+    }
+    
+    private String criarMensagemAtualizacao(String nomePaciente, NotificacaoCirurgiaAtualizadaEvent evento) {
+        return String.format(
+            "Olá, %s!\n\n" +
+            "Informamos que houve uma alteração no agendamento da sua cirurgia.\n\n" +
+            "Novos Detalhes do Agendamento:\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "📅 Nova Data: %s\n" +
+            "🕐 Novo Horário: %s\n" +
+            "📍 Local: %s\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+            "Por favor, atualize sua agenda com estas novas informações.\n\n" +
+            "Orientações Importantes:\n" +
+            "• Chegue com 1 hora de antecedência\n" +
+            "• Traga um acompanhante adulto\n" +
+            "• Siga rigorosamente as orientações de jejum fornecidas pelo seu médico\n" +
+            "• Traga seus documentos pessoais e cartão do SUS\n" +
+            "• Leve seus exames médicos mais recentes\n\n" +
+            "Em caso de dúvidas, estamos à disposição para ajudá-lo(a).\n\n" +
+            "Atenciosamente,\n" +
+            "Equipe SusTech\n" +
+            "Sistema Único de Saúde",
+            nomePaciente,
+            evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+            evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm")),
+            evento.local()
+        );
+    }
+    
+    private String criarMensagemCancelamento(String nomePaciente, NotificacaoCirurgiaCanceladaEvent evento) {
+        return String.format(
+            "Olá, %s,\n\n" +
+            "Lamentamos informar que sua cirurgia foi cancelada.\n\n" +
+            "Cirurgia Cancelada:\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "📅 Data que estava agendada: %s\n" +
+            "🕐 Horário: %s\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+            "Pedimos desculpas pelo transtorno. O cancelamento pode ter ocorrido por diversos motivos,\n" +
+            "incluindo questões administrativas, disponibilidade de recursos ou necessidades médicas.\n\n" +
+            "Próximos Passos:\n" +
+            "• Nossa equipe entrará em contato para reagendar sua cirurgia o mais breve possível\n" +
+            "• Continue seguindo as orientações médicas fornecidas anteriormente\n" +
+            "• Em caso de urgência ou sintomas preocupantes, procure atendimento imediato\n\n" +
+            "Compreendemos a importância deste procedimento e estamos trabalhando para\n" +
+            "encontrar uma nova data que atenda às suas necessidades.\n\n" +
+            "Para mais informações ou dúvidas, entre em contato conosco.\n" +
+            "Estamos aqui para apoiá-lo(a).\n\n" +
+            "Atenciosamente,\n" +
+            "Equipe SusTech\n" +
+            "Sistema Único de Saúde",
+            nomePaciente,
+            evento.dataCirurgia().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+            evento.horaCirurgia().format(DateTimeFormatter.ofPattern("HH:mm"))
+        );
     }
 
     private boolean enviarSMS(String telefone, String mensagem) {
@@ -312,8 +391,23 @@ public class NotificacaoService {
             TarefaAssistenteSocial tarefa = new TarefaAssistenteSocial();
             tarefa.setPacienteId(pacienteId);
             tarefa.setDescricao("Notificar paciente presencialmente: " + mensagem);
-            tarefa.setStatus(StatusTarefa.PENDENTE);
             tarefa.setDataCriacao(LocalDateTime.now());
+            
+            Optional<AssistenteSocial> assistenteDisponivel = encontrarAssistenteSocialMenosOcupada();
+            
+            if (assistenteDisponivel.isPresent()) {
+                AssistenteSocial assistente = assistenteDisponivel.get();
+                tarefa.setAssistenteSocialId(assistente.getId());
+                tarefa.setStatus(StatusTarefa.EM_ANDAMENTO);
+                
+                logger.info("   Tarefa atribuída automaticamente à assistente social: {}", assistente.getNome());
+                logger.info("   Matrícula: {}", assistente.getMatricula());
+                logger.info("   E-mail: {}", assistente.getEmail());
+            } else {
+                tarefa.setStatus(StatusTarefa.PENDENTE);
+                logger.warn("   ⚠ Nenhuma assistente social disponível no sistema");
+                logger.warn("   Tarefa criada como PENDENTE para atribuição manual");
+            }
             
             TarefaAssistenteSocial tarefaSalva = tarefaRepository.save(tarefa);
             
@@ -321,7 +415,9 @@ public class NotificacaoService {
             logger.info("✅ TAREFA CRIADA PARA ASSISTENTE SOCIAL");
             logger.info("Tarefa ID: {}", tarefaSalva.getId());
             logger.info("Paciente ID: {}", pacienteId);
-            logger.info("Status: {}", StatusTarefa.PENDENTE);
+            logger.info("Status: {}", tarefaSalva.getStatus());
+            logger.info("Assistente Social: {}", tarefaSalva.getAssistenteSocialId() != null ? 
+                       tarefaSalva.getAssistenteSocialId() : "Não atribuída");
             logger.info("Descrição: {}", tarefaSalva.getDescricao());
             logger.info("==========================================================");
         } catch (Exception e) {
@@ -335,7 +431,39 @@ public class NotificacaoService {
         }
     }
     
-    public void enviarLembretePaciente(java.util.UUID pacienteId, String mensagem) {
+    private Optional<AssistenteSocial> encontrarAssistenteSocialMenosOcupada() {
+        
+        List<AssistenteSocial> assistentes = assistenteSocialRepository.findAll();
+        
+        if (assistentes.isEmpty()) {
+            logger.warn("   ⚠ Nenhuma assistente social cadastrada no sistema");
+            return Optional.empty();
+        }
+        
+        logger.info("{} assistente(s) social(is) encontrada(s) no sistema", assistentes.size());
+        
+        // Encontrar a assistente com menos tarefas ativas
+        Optional<AssistenteSocial> assistenteMenosOcupada = assistentes.stream()
+                .min(Comparator.comparingLong(assistente -> {
+                    long tarefasAtivas = tarefaRepository.contarTarefasAtivasPorAssistente(assistente.getId());
+                    logger.info("   - {} ({}): {} tarefa(s) ativa(s)", 
+                               assistente.getNome(), 
+                               assistente.getMatricula(), 
+                               tarefasAtivas);
+                    return tarefasAtivas;
+                }));
+        
+        assistenteMenosOcupada.ifPresent(assistente -> {
+            long tarefasAtivas = tarefaRepository.contarTarefasAtivasPorAssistente(assistente.getId());
+            logger.info("Assistente selecionada: {} (atualmente com {} tarefa(s))", 
+                       assistente.getNome(), 
+                       tarefasAtivas);
+        });
+        
+        return assistenteMenosOcupada;
+    }
+    
+    public void enviarLembretePaciente(java.util.UUID pacienteId, String dataCirurgia, String horaCirurgia, String local) {
         Paciente paciente = pacienteRepository.findById(pacienteId).orElse(null);
         
         if (paciente == null) {
@@ -343,16 +471,27 @@ public class NotificacaoService {
             return;
         }
         
+        String assunto = "Lembrete: Sua Cirurgia se Aproxima";
+        String mensagemEmail = criarMensagemLembretePaciente(paciente.getNome(), dataCirurgia, horaCirurgia, local);
+        String mensagemSMS = String.format(
+            "LEMBRETE SUSTECH: %s, sua cirurgia está agendada para %s às %s no %s. " +
+            "Chegue com 1h de antecedência. Traga acompanhante e documentos.",
+            paciente.getNome(),
+            dataCirurgia,
+            horaCirurgia,
+            local
+        );
+        
         boolean notificado = false;
         
         if (paciente.getEmail() != null && !paciente.getEmail().isBlank()) {
-            enviarEmail(paciente.getEmail(), "LEMBRETE", mensagem);
+            enviarEmail(paciente.getEmail(), assunto, mensagemEmail);
             logger.info("Lembrete enviado para paciente por email");
             notificado = true;
         }
         
         if (paciente.getTelefone() != null && !paciente.getTelefone().isBlank()) {
-            enviarSMS(paciente.getTelefone(), mensagem);
+            enviarSMS(paciente.getTelefone(), mensagemSMS);
             logger.info("Lembrete enviado para paciente por SMS");
             notificado = true;
         }
@@ -362,22 +501,66 @@ public class NotificacaoService {
         }
     }
     
-    public void enviarLembreteAssistenteSocial(AssistenteSocial assistenteSocial, String mensagem) {
+    private String criarMensagemLembretePaciente(String nomePaciente, String dataCirurgia, String horaCirurgia, String local) {
+        return String.format(
+            "Olá, %s!\n\n" +
+            "Este é um lembrete importante sobre sua cirurgia que está próxima.\n\n" +
+            "Detalhes da sua Cirurgia:\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "📅 Data: %s (daqui a 7 dias)\n" +
+            "🕐 Horário: %s\n" +
+            "📍 Local: %s\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+            "Checklist - Não se Esqueça:\n" +
+            "✓ Confirme seu acompanhante adulto\n" +
+            "✓ Separe seus documentos (RG, CPF e Cartão do SUS)\n" +
+            "✓ Reúna todos os seus exames médicos\n" +
+            "✓ Siga as orientações de jejum do seu médico\n" +
+            "✓ Chegue com 1 hora de antecedência\n" +
+            "✓ Use roupas confortáveis\n" +
+            "✓ Evite usar joias, maquiagem ou esmalte\n\n" +
+            "Importante:\n" +
+            "Caso necessite remarcar ou tenha algum imprevisto, entre em contato\n" +
+            "conosco o quanto antes. Sua saúde e bem-estar são nossa prioridade!\n\n" +
+            "Se tiver qualquer dúvida, estamos à disposição para ajudá-lo(a).\n\n" +
+            "Desejamos que tudo corra muito bem!\n\n" +
+            "Atenciosamente,\n" +
+            "Equipe SusTech\n" +
+            "Sistema Único de Saúde",
+            nomePaciente,
+            dataCirurgia,
+            horaCirurgia,
+            local
+        );
+    }
+    
+    public void enviarLembreteAssistenteSocial(AssistenteSocial assistenteSocial, String nomePaciente, String dataCirurgia, String horaCirurgia, String local) {
         if (assistenteSocial == null) {
             logger.warn("Assistente social não encontrada");
             return;
         }
         
+        String assunto = "Lembrete: Cirurgia de Paciente Próxima";
+        String mensagemEmail = criarMensagemLembreteAssistenteSocial(assistenteSocial.getNome(), nomePaciente, dataCirurgia, horaCirurgia, local);
+        String mensagemSMS = String.format(
+            "LEMBRETE SUSTECH: Assistente %s, o paciente %s tem cirurgia em %s às %s no %s. Verificar contato se necessário.",
+            assistenteSocial.getNome(),
+            nomePaciente,
+            dataCirurgia,
+            horaCirurgia,
+            local
+        );
+        
         boolean notificado = false;
         
         if (assistenteSocial.getEmail() != null && !assistenteSocial.getEmail().isBlank()) {
-            enviarEmail(assistenteSocial.getEmail(), "LEMBRETE CIRURGIA", mensagem);
+            enviarEmail(assistenteSocial.getEmail(), assunto, mensagemEmail);
             logger.info("Lembrete enviado para assistente social {} por email", assistenteSocial.getNome());
             notificado = true;
         }
         
         if (assistenteSocial.getTelefoneContato() != null && !assistenteSocial.getTelefoneContato().isBlank()) {
-            enviarSMS(assistenteSocial.getTelefoneContato(), mensagem);
+            enviarSMS(assistenteSocial.getTelefoneContato(), mensagemSMS);
             logger.info("Lembrete enviado para assistente social {} por SMS", assistenteSocial.getNome());
             notificado = true;
         }
@@ -386,5 +569,35 @@ public class NotificacaoService {
             logger.warn("Assistente social {} não possui e-mail ou telefone para receber lembrete", 
                        assistenteSocial.getId());
         }
+    }
+    
+    private String criarMensagemLembreteAssistenteSocial(String nomeAssistente, String nomePaciente, String dataCirurgia, String horaCirurgia, String local) {
+        return String.format(
+            "Olá, %s!\n\n" +
+            "Este é um lembrete sobre uma cirurgia próxima de um paciente sob seus cuidados.\n\n" +
+            "Informações do Paciente e Cirurgia:\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "👤 Paciente: %s\n" +
+            "📅 Data: %s (daqui a 7 dias)\n" +
+            "🕐 Horário: %s\n" +
+            "📍 Local: %s\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+            "Ações Recomendadas:\n" +
+            "• Verificar se o paciente recebeu as orientações pré-operatórias\n" +
+            "• Confirmar se o paciente possui acompanhante confirmado\n" +
+            "• Verificar se há necessidade de suporte adicional (transporte, documentação, etc.)\n" +
+            "• Entrar em contato com o paciente para confirmação\n\n" +
+            "Caso identifique qualquer necessidade especial ou dificuldade do paciente,\n" +
+            "por favor, tome as providências necessárias o quanto antes.\n\n" +
+            "Conte com o apoio da equipe SusTech para melhor atender nossos pacientes!\n\n" +
+            "Atenciosamente,\n" +
+            "Sistema SusTech\n" +
+            "Serviço Social - SUS",
+            nomeAssistente,
+            nomePaciente,
+            dataCirurgia,
+            horaCirurgia,
+            local
+        );
     }
 }
